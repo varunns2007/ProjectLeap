@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title><!DOCTYPE html>
+        <html lang="en">
+        <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>GreenLog | Tree Monitoring System</title>
+    <meta name="description" content="GreenLog: register trees, log health check-ins and manage volunteers.">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' rx='11' fill='%2310b981'/%3E%3Cpath d='M24 8C34.5 13.5 35.5 25 24 33.5 12.5 25 13.5 13.5 24 8z' fill='%23fff'/%3E%3Cpath d='M24 33.5V40' stroke='%23fff' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+          --black: #060708;
+          --page: #0e0f11;
+          --panel: #17191c;
+          --panel-head: #1f2226;
+          --field: #0c0d0f;
+          --line: #2b2f35;
+          --line-strong: #454b54;
+          --text: #f1f3f5;
+          --text-soft: #c4c9d0;
+          --muted: #8e959f;
+          --white: #ffffff;
+      
+          --brand: #10b981;
+          --brand-deep: #047857;
+          --alive: #34d399;
+          --critical: #f5b544;
+          --dead: #f26d6d;
+      
+          --ui: "Manrope", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", Arial, sans-serif;
+          --num: "Barlow Condensed", "Arial Narrow", "Segoe UI", Arial, sans-serif;
+          --radius: 6px;
+          --wrap: 1240px;
+          --lift: inset 0 1px 0 rgba(255,255,255,.05), 0 10px 28px -14px rgba(0,0,0,.85);
+        }
+      
+        *, *::before, *::after { box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+        body {
+          margin: 0;
+          background: var(--page);
+          color: var(--text);
+          font: 15px/1.55 var(--ui);
+          -webkit-font-smoothing: antialiased;
+          text-rendering: optimizeLegibility;
+          min-height: 100vh;
+          display: flex;
+          flex-direction: column;
+        }
+        .wrap { width: 100%; max-width: var(--wrap); margin: 0 auto; padding: 0 24px; }
+        h1, h2, h3 { font-family: var(--ui); font-weight: 800; margin: 0; letter-spacing: -0.015em; }
+        button, input, select { font: inherit; color: inherit; }
+        :focus-visible { outline: 2px solid var(--white); outline-offset: 2px; }
+      
+        /* ---------- Masthead ---------- */
+        .masthead { background: var(--black); border-bottom: 1px solid var(--line); }
+        .masthead .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 16px; padding-bottom: 16px; flex-wrap: wrap; }
+        .brand { display: flex; align-items: center; gap: 13px; text-decoration: none; color: var(--white); }
+        .brand-logo { width: 46px; height: 46px; flex: none; display: block; filter: drop-shadow(0 4px 10px rgba(16,185,129,.25)); }
+        .brand-name { font-family: var(--ui); font-size: 25px; font-weight: 800; line-height: 1; letter-spacing: -0.02em; display: block; }
+        .brand-name b { color: var(--brand); font-weight: 800; }
+        .brand-sub { display: block; font-size: 12.5px; color: var(--muted); font-weight: 500; margin-top: 6px; letter-spacing: .01em; }
+        .masthead-actions { display: flex; align-items: center; gap: 12px; }
+        .conn { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line-strong); padding: 7px 13px; border-radius: 999px; font-size: 13px; font-weight: 600; color: var(--text-soft); background: #0b0c0e; }
+        .conn i { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); display: inline-block; }
+        .conn.online i { background: var(--alive); box-shadow: 0 0 0 3px rgba(52,211,153,.18); }
+        .conn.offline i { background: var(--dead); box-shadow: 0 0 0 3px rgba(242,109,109,.18); }
+      
+        /* ---------- Tabs ---------- */
+        .tabbar { background: var(--black); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 20; }
+        .tabs { display: flex; gap: 4px; overflow-x: auto; }
+        .tab {
+          background: none; border: 0; cursor: pointer; padding: 15px 22px; color: var(--muted);
+          border-bottom: 3px solid transparent; font-weight: 700; font-size: 14.5px; white-space: nowrap;
+          display: inline-flex; align-items: center; gap: 10px; transition: color .15s, border-color .15s;
+        }
+        .tab:hover { color: var(--white); }
+        .tab[aria-selected="true"] { color: var(--white); border-bottom-color: var(--white); }
+        .tab .count { background: #16181b; border: 1px solid var(--line); color: var(--text-soft); font-family: var(--num); font-size: 15px; font-weight: 600; min-width: 26px; text-align: center; padding: 0 8px; line-height: 20px; border-radius: 4px; }
+        .tab[aria-selected="true"] .count { background: var(--white); color: var(--black); border-color: var(--white); }
+      
+        /* ---------- Intro band ---------- */
+        .intro { background:
+            linear-gradient(90deg, rgba(255,255,255,.028) 1px, transparent 1px) 0 0 / 56px 56px,
+            linear-gradient(180deg, #17191d, #101113);
+          border-bottom: 1px solid var(--line); }
+        .intro .wrap { padding-top: 40px; padding-bottom: 36px; display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; flex-wrap: wrap; }
+        .intro h1 { font-size: clamp(28px, 4vw, 40px); line-height: 1.12; }
+        .intro p { margin: 12px 0 0; color: var(--text-soft); max-width: 60ch; }
+        .stamp { color: var(--muted); font-size: 13px; font-weight: 500; }
+      
+        /* ---------- Buttons ---------- */
+        .btn {
+          display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+          border: 1px solid var(--white); background: var(--white); color: #000;
+          padding: 11px 18px; font-weight: 800; letter-spacing: .005em; border-radius: var(--radius); cursor: pointer;
+          transition: background .15s, color .15s, border-color .15s;
+        }
+        .btn:hover { background: #dfe2e6; border-color: #dfe2e6; }
+        .btn:disabled { opacity: .55; cursor: not-allowed; }
+        .btn.ghost { background: transparent; color: var(--text); border-color: var(--line-strong); font-weight: 700; }
+        .btn.ghost:hover { border-color: var(--white); background: #1d2024; }
+        .btn.small { padding: 6px 12px; font-size: 13px; }
+        .btn.block { width: 100%; }
+        .btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+        .spin { animation: spin .8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+      
+        /* ---------- Main ---------- */
+        main { flex: 1; padding: 32px 0 56px; }
+      
+        /* KPI boxes */
+        .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
+        .kpi { background: linear-gradient(180deg, #1c1f23, #15171a); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px 22px 0; box-shadow: var(--lift); display: flex; flex-direction: column; }
+        .kpi-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+        .kpi-label { color: var(--text-soft); font-size: 13.5px; font-weight: 700; }
+        .kpi-ico { width: 38px; height: 38px; display: grid; place-items: center; border: 1px solid var(--line-strong); background: #0f1113; border-radius: 6px; color: var(--text-soft); }
+        .kpi-ico svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+        .kpi.good .kpi-ico { color: var(--alive); border-color: rgba(52,211,153,.45); background: rgba(16,185,129,.08); }
+        .kpi-value {
+          font-family: var(--num); font-weight: 600; font-size: 68px; line-height: .92; letter-spacing: .005em;
+          color: var(--white); font-variant-numeric: tabular-nums;
+          margin: 20px 0 18px; display: flex; align-items: baseline; gap: 4px;
+        }
+        .kpi-value em { font-style: normal; font-size: 32px; font-weight: 500; color: var(--muted); }
+        .kpi-foot { margin-top: auto; border-top: 1px solid var(--line); padding: 12px 0 14px; }
+        .kpi-note { color: var(--muted); font-size: 13px; font-weight: 500; }
+        .meter { height: 5px; background: #2a2e34; border-radius: 3px; overflow: hidden; margin-bottom: 10px; }
+        .meter span { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--brand-deep), var(--alive)); transition: width .6s ease; }
+      
+        /* Panels */
+        .panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; box-shadow: var(--lift); }
+        .panel-head { background: linear-gradient(180deg, #23262b, #1e2125); border-bottom: 1px solid var(--line); padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+        .panel-head h2 { font-size: 17px; }
+        .panel-head small { color: var(--muted); font-size: 13px; font-weight: 500; }
+        .panel-body { padding: 20px; }
+      
+        .health { margin-bottom: 20px; }
+        .health-bar { display: flex; height: 14px; border-radius: 3px; overflow: hidden; background: #2a2e34; border: 1px solid var(--line); }
+        .health-bar span { display: block; height: 100%; transition: width .6s ease; }
+        .legend { display: flex; flex-wrap: wrap; gap: 8px 32px; margin-top: 14px; color: var(--text-soft); font-size: 14px; font-weight: 500; align-items: baseline; }
+        .legend b { color: var(--white); font-family: var(--num); font-size: 22px; font-weight: 600; margin-left: 4px; font-variant-numeric: tabular-nums; }
+        .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 8px; }
+      
+        .layout { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 20px; align-items: start; }
+        .layout aside { position: sticky; top: 72px; }
+      
+        /* Toolbar */
+        .toolbar { display: flex; gap: 10px; padding: 14px 20px; border-bottom: 1px solid var(--line); background: #131518; flex-wrap: wrap; }
+        .toolbar .search { flex: 1 1 200px; }
+      
+        /* Forms */
+        .field { margin-bottom: 16px; }
+        label { display: block; font-size: 13.5px; font-weight: 700; margin-bottom: 6px; color: var(--text); }
+        label .opt { color: var(--muted); font-weight: 500; }
+        input, select {
+          width: 100%; background: var(--field); border: 1px solid var(--line-strong); border-radius: var(--radius);
+          padding: 10px 12px; min-height: 42px; transition: border-color .15s, box-shadow .15s; font-weight: 500;
+        }
+        input::placeholder { color: #6a717b; }
+        input:hover, select:hover { border-color: #6a717b; }
+        input:focus, select:focus { border-color: var(--white); outline: none; box-shadow: 0 0 0 3px rgba(255,255,255,.14); }
+        select { appearance: none; background-image: linear-gradient(45deg, transparent 50%, #b6bcc4 50%), linear-gradient(135deg, #b6bcc4 50%, transparent 50%); background-position: calc(100% - 18px) 18px, calc(100% - 13px) 18px; background-size: 5px 5px; background-repeat: no-repeat; padding-right: 34px; }
+        select option { background: #16181b; color: var(--text); }
+        input[type="date"] { color-scheme: dark; }
+        .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .hint { color: var(--muted); font-size: 12.5px; margin-top: 6px; }
+      
+        /* Tables */
+        .table-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; min-width: 640px; }
+        th, td { text-align: left; padding: 13px 20px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+        th { font-size: 12.5px; color: var(--muted); font-weight: 700; background: #121417; white-space: nowrap; letter-spacing: .01em; }
+        tbody tr:nth-child(even) { background: rgba(255,255,255,.022); }
+        tbody tr:hover { background: rgba(255,255,255,.055); }
+        tbody tr:last-child td { border-bottom: 0; }
+        td.strong { font-weight: 700; color: var(--white); }
+        td.num, th.num { text-align: right; font-family: var(--num); font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; }
+        th.num { font-family: var(--ui); font-size: 12.5px; font-weight: 700; }
+        td.id { font-family: var(--num); font-size: 16px; font-weight: 500; color: var(--muted); font-variant-numeric: tabular-nums; width: 64px; letter-spacing: .02em; }
+        .muted { color: var(--muted); }
+      
+        .badge { display: inline-flex; align-items: center; gap: 7px; border: 1px solid; border-radius: 999px; padding: 2px 11px 2px 9px; font-size: 12.5px; font-weight: 800; }
+        .badge::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+        .badge.ALIVE { color: var(--alive); border-color: rgba(52,211,153,.5); background: rgba(52,211,153,.09); }
+        .badge.CRITICAL { color: var(--critical); border-color: rgba(245,181,68,.5); background: rgba(245,181,68,.09); }
+        .badge.DEAD { color: var(--dead); border-color: rgba(242,109,109,.5); background: rgba(242,109,109,.09); }
+      
+        .empty { padding: 44px 20px; text-align: center; color: var(--muted); }
+        .empty strong { display: block; color: var(--text); font-family: var(--ui); font-weight: 800; font-size: 17px; margin-bottom: 6px; }
+        .skeleton td > span { display: block; height: 12px; border-radius: 3px; background: linear-gradient(90deg, #22252a, #30343a, #22252a); background-size: 200% 100%; animation: shimmer 1.3s linear infinite; }
+        @keyframes shimmer { to { background-position: -200% 0; } }
+      
+        .view[hidden] { display: none; }
+      
+        /* Footer */
+        footer { background: var(--black); border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+        footer .wrap { display: flex; justify-content: space-between; gap: 12px; padding-top: 22px; padding-bottom: 22px; flex-wrap: wrap; }
+        footer code { color: var(--text-soft); background: #121417; border: 1px solid var(--line); padding: 1px 7px; border-radius: 3px; }
+      
+        /* Toasts */
+        #toasts { position: fixed; right: 20px; bottom: 20px; display: flex; flex-direction: column; gap: 10px; z-index: 100; width: min(400px, calc(100vw - 40px)); }
+        .toast { background: #0a0b0d; border: 1px solid var(--line-strong); border-left: 5px solid var(--white); border-radius: var(--radius); padding: 13px 14px 13px 16px; display: flex; gap: 12px; align-items: flex-start; box-shadow: 0 12px 32px rgba(0,0,0,.65); animation: toast-in .22s ease-out; }
+        .toast.success { border-left-color: var(--alive); }
+        .toast.error { border-left-color: var(--dead); }
+        .toast.warn { border-left-color: var(--critical); }
+        .toast .t-body { flex: 1; }
+        .toast .t-title { font-weight: 800; color: var(--white); font-size: 14px; }
+        .toast .t-msg { color: var(--text-soft); font-size: 13.5px; margin-top: 2px; word-break: break-word; }
+        .toast button { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 20px; line-height: 1; padding: 0 2px; }
+        .toast button:hover { color: var(--white); }
+        @keyframes toast-in { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
+      
+        /* Responsive */
+        @media (max-width: 1000px) {
+          .kpis { grid-template-columns: repeat(2, 1fr); }
+          .layout { grid-template-columns: 1fr; }
+          .layout aside { position: static; order: -1; }
+        }
+        @media (max-width: 560px) {
+          .wrap { padding: 0 16px; }
+          .kpis { grid-template-columns: 1fr; }
+          .row2 { grid-template-columns: 1fr; }
+          .kpi-value { font-size: 60px; }
+          .tab { padding: 14px 16px; }
+          th, td { padding: 12px 14px; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+        }
+    </style>
+</head>
+<body>
+
+<header class="masthead">
+    <div class="wrap">
+        <a class="brand" href="#trees" aria-label="GreenLog home">
+            <svg class="brand-logo" viewBox="0 0 48 48" role="img" aria-label="GreenLog logo">
+                <defs><linearGradient id="gl-grad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#34d399"/><stop offset="1" stop-color="#047857"/></linearGradient></defs>
+                <rect width="48" height="48" rx="11" fill="url(#gl-grad)"/>
+                <rect x=".5" y=".5" width="47" height="47" rx="10.5" fill="none" stroke="#fff" stroke-opacity=".18"/>
+                <path d="M24 8C34.5 13.5 35.5 25 24 33.5 12.5 25 13.5 13.5 24 8z" fill="#fff"/>
+                <path d="M24 14.5V33" stroke="#065f46" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+                <path d="M24 19.5l4.5-3.2M24 19.5l-4.5-3.2M24 24.5l5.5-3.7M24 24.5l-5.5-3.7" stroke="#065f46" stroke-width="1.4" stroke-linecap="round" fill="none"/>
+                <path d="M24 33.5V39" stroke="#fff" stroke-width="2.6" stroke-linecap="round" fill="none"/>
+                <path d="M15.5 41.5C20 44 28 44 32.5 41.5" stroke="#fff" stroke-opacity=".7" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+            </svg>
+            <span>
+        <span class="brand-name">Green<b>Log</b></span>
+        <span class="brand-sub">Tree Monitoring System</span>
+      </span>
+        </a>
+        <div class="masthead-actions">
+            <span class="conn" id="conn" role="status"><i></i><span id="connText">Connecting</span></span>
+            <button class="btn ghost small" id="refreshBtn" type="button">
+                <svg viewBox="0 0 24 24" id="refreshIcon"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+                Refresh data
+            </button>
+        </div>
+    </div>
+</header>
+
+<div class="tabbar">
+    <div class="wrap">
+        <nav class="tabs" role="tablist" aria-label="Sections">
+            <button class="tab" role="tab" id="tab-trees" data-view="trees" aria-selected="true" aria-controls="view-trees">Trees <span class="count" id="cnt-trees">0</span></button>
+            <button class="tab" role="tab" id="tab-checkins" data-view="checkins" aria-selected="false" aria-controls="view-checkins">Check-ins <span class="count" id="cnt-checkins">0</span></button>
+            <button class="tab" role="tab" id="tab-volunteers" data-view="volunteers" aria-selected="false" aria-controls="view-volunteers">Volunteers <span class="count" id="cnt-volunteers">0</span></button>
+        </nav>
+    </div>
+</div>
+
+<section class="intro">
+    <div class="wrap">
+        <div>
+            <h1>Plantation health at a glance</h1>
+            <p>Register new trees, record field check-ins and keep track of the volunteers who look after them.</p>
+        </div>
+        <div class="stamp" id="stamp">Not synced yet</div>
+    </div>
+</section>
+
+<main>
+    <div class="wrap">
+
+        <!-- KPI boxes -->
+        <section class="kpis" aria-label="Key metrics">
+            <div class="kpi">
+                <div class="kpi-top"><span class="kpi-label">Total trees</span>
+                    <span class="kpi-ico"><svg viewBox="0 0 24 24"><path d="M12 3l6 8h-3l4 6H5l4-6H6z"/><path d="M12 17v4"/></svg></span></div>
+                <div class="kpi-value"><span id="kpiTotal">0</span></div>
+                <div class="kpi-foot"><div class="kpi-note">Registered in the system</div></div>
+            </div>
+            <div class="kpi good">
+                <div class="kpi-top"><span class="kpi-label">Alive trees</span>
+                    <span class="kpi-ico"><svg viewBox="0 0 24 24"><path d="M3 12h4l2.5-6 4 12 2.5-6H21"/></svg></span></div>
+                <div class="kpi-value"><span id="kpiAlive">0</span></div>
+                <div class="kpi-foot"><div class="kpi-note" id="kpiAliveNote">Healthy and growing</div></div>
+            </div>
+            <div class="kpi">
+                <div class="kpi-top"><span class="kpi-label">Survival rate</span>
+                    <span class="kpi-ico"><svg viewBox="0 0 24 24"><path d="M19 5L5 19"/><circle cx="7" cy="7" r="2.2"/><circle cx="17" cy="17" r="2.2"/></svg></span></div>
+                <div class="kpi-value"><span id="kpiRate">0</span><em>%</em></div>
+                <div class="kpi-foot"><div class="meter" aria-hidden="true"><span id="kpiMeter"></span></div><div class="kpi-note">Alive out of all registered trees</div></div>
+            </div>
+            <div class="kpi">
+                <div class="kpi-top"><span class="kpi-label">Active volunteers</span>
+                    <span class="kpi-ico"><svg viewBox="0 0 24 24"><path d="M16 20v-1a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v1"/><circle cx="10" cy="8" r="3.5"/><path d="M20 20v-1a4 4 0 0 0-3-3.9"/><path d="M15.5 4.2a3.5 3.5 0 0 1 0 6.6"/></svg></span></div>
+                <div class="kpi-value"><span id="kpiVol">0</span></div>
+                <div class="kpi-foot"><div class="kpi-note" id="kpiVolNote">With trees or check-ins</div></div>
+            </div>
+        </section>
+
+        <!-- Population health -->
+        <section class="panel health" aria-label="Population health">
+            <div class="panel-head"><h2>Population health</h2><small id="healthNote">No trees registered</small></div>
+            <div class="panel-body">
+                <div class="health-bar" id="healthBar" role="img" aria-label="Tree status distribution">
+                    <span id="hbAlive" style="background:var(--alive);width:0"></span>
+                    <span id="hbCrit" style="background:var(--critical);width:0"></span>
+                    <span id="hbDead" style="background:var(--dead);width:0"></span>
+                </div>
+                <div class="legend">
+                    <span><i style="background:var(--alive)"></i>Alive <b id="lgAlive">0</b></span>
+                    <span><i style="background:var(--critical)"></i>Critical <b id="lgCrit">0</b></span>
+                    <span><i style="background:var(--dead)"></i>Dead <b id="lgDead">0</b></span>
+                </div>
+            </div>
+        </section>
+
+        <!-- TREES -->
+        <div class="view" id="view-trees" role="tabpanel" aria-labelledby="tab-trees">
+            <div class="layout">
+                <section class="panel">
+                    <div class="panel-head"><h2>Registered trees</h2><small id="treesMeta"></small></div>
+                    <div class="toolbar">
+                        <input class="search" id="treeSearch" type="search" placeholder="Search species, location or volunteer" aria-label="Search trees">
+                        <select id="treeFilter" aria-label="Filter trees by status" style="width:auto;min-width:150px">
+                            <option value="">All statuses</option>
+                            <option value="ALIVE">Alive</option>
+                            <option value="CRITICAL">Critical</option>
+                            <option value="DEAD">Dead</option>
+                        </select>
+                    </div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead><tr><th>ID</th><th>Species</th><th>Location</th><th>Planted</th><th>Status</th><th>Volunteer</th><th></th></tr></thead>
+                            <tbody id="treesBody"></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <aside class="panel">
+                    <div class="panel-head"><h2>Register a tree</h2></div>
+                    <form class="panel-body" id="treeForm" novalidate>
+                        <div class="field">
+                            <label for="tSpecies">Species</label>
+                            <input id="tSpecies" name="species" required maxlength="120" placeholder="e.g. Neem" autocomplete="off">
+                        </div>
+                        <div class="field">
+                            <label for="tLocation">Location</label>
+                            <input id="tLocation" name="location" required maxlength="200" placeholder="e.g. North Ridge, Block C" autocomplete="off">
+                        </div>
+                        <div class="row2">
+                            <div class="field">
+                                <label for="tDate">Date planted</label>
+                                <input id="tDate" name="datePlanted" type="date" required>
+                            </div>
+                            <div class="field">
+                                <label for="tStatus">Status</label>
+                                <select id="tStatus" name="status">
+                                    <option value="ALIVE">Alive</option>
+                                    <option value="CRITICAL">Critical</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label for="tVolunteer">Volunteer <span class="opt">(optional)</span></label>
+                            <select id="tVolunteer" name="volunteerId"><option value="">No volunteer assigned</option></select>
+                        </div>
+                        <div class="field">
+                            <label for="tDrive">Plantation drive ID <span class="opt">(optional)</span></label>
+                            <input id="tDrive" name="plantationDriveId" type="number" min="1" step="1" placeholder="e.g. 3">
+                        </div>
+                        <button class="btn block" type="submit">Save tree</button>
+                    </form>
+                </aside>
+            </div>
+        </div>
+
+        <!-- CHECK-INS -->
+        <div class="view" id="view-checkins" role="tabpanel" aria-labelledby="tab-checkins" hidden>
+            <div class="layout">
+                <section class="panel">
+                    <div class="panel-head"><h2>Check-in history</h2><small id="checkinsMeta"></small></div>
+                    <div class="toolbar">
+                        <input class="search" id="ciSearch" type="search" placeholder="Search tree or volunteer" aria-label="Search check-ins">
+                        <select id="ciFilter" aria-label="Filter check-ins by status" style="width:auto;min-width:150px">
+                            <option value="">All statuses</option>
+                            <option value="ALIVE">Alive</option>
+                            <option value="CRITICAL">Critical</option>
+                            <option value="DEAD">Dead</option>
+                        </select>
+                    </div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead><tr><th>ID</th><th>Tree</th><th>Volunteer</th><th>Date</th><th>Status recorded</th></tr></thead>
+                            <tbody id="checkinsBody"></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <aside class="panel">
+                    <div class="panel-head"><h2>Log a check-in</h2></div>
+                    <form class="panel-body" id="checkinForm" novalidate>
+                        <div class="field">
+                            <label for="cTree">Tree</label>
+                            <select id="cTree" name="treeId" required><option value="">Select a tree</option></select>
+                            <div class="hint" id="cTreeHint">Only trees that are alive or critical can be checked in.</div>
+                        </div>
+                        <div class="field">
+                            <label for="cVolunteer">Volunteer <span class="opt">(optional)</span></label>
+                            <select id="cVolunteer" name="volunteerId"><option value="">No volunteer</option></select>
+                        </div>
+                        <div class="field">
+                            <label for="cStatus">Observed status</label>
+                            <select id="cStatus" name="status">
+                                <option value="ALIVE">Alive</option>
+                                <option value="CRITICAL">Critical</option>
+                                <option value="DEAD">Dead</option>
+                            </select>
+                        </div>
+                        <button class="btn block" type="submit">Record check-in</button>
+                    </form>
+                </aside>
+            </div>
+        </div>
+
+        <!-- VOLUNTEERS -->
+        <div class="view" id="view-volunteers" role="tabpanel" aria-labelledby="tab-volunteers" hidden>
+            <div class="layout">
+                <section class="panel">
+                    <div class="panel-head"><h2>Volunteer directory</h2><small id="volMeta"></small></div>
+                    <div class="toolbar">
+                        <input class="search" id="volSearch" type="search" placeholder="Search name, email or phone" aria-label="Search volunteers">
+                    </div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Phone</th><th class="num">Trees</th><th class="num">Check-ins</th></tr></thead>
+                            <tbody id="volBody"></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <aside class="panel">
+                    <div class="panel-head"><h2>Add a volunteer</h2></div>
+                    <form class="panel-body" id="volForm" novalidate>
+                        <div class="field">
+                            <label for="vName">Full name</label>
+                            <input id="vName" name="name" required maxlength="120" placeholder="e.g. Anitha Raman" autocomplete="off">
+                        </div>
+                        <div class="field">
+                            <label for="vEmail">Email</label>
+                            <input id="vEmail" name="email" type="email" required maxlength="160" placeholder="name@example.com" autocomplete="off">
+                        </div>
+                        <div class="field">
+                            <label for="vPhone">Phone</label>
+                            <input id="vPhone" name="phone" type="tel" required maxlength="25" placeholder="+91 98765 43210" autocomplete="off">
+                        </div>
+                        <button class="btn block" type="submit">Add volunteer</button>
+                    </form>
+                </aside>
+            </div>
+        </div>
+
+    </div>
+</main>
+
+<footer>
+    <div class="wrap">
+        <span>GreenLog tree monitoring system</span>
+        <span>API endpoint <code id="apiLabel"></code></span>
+    </div>
+</footer>
+
+<div id="toasts" aria-live="polite" aria-atomic="false"></div>
+
+<script>
+    (() => {
+      'use strict';
+    
+      /* ---------- Config ----------
+         When this file is served by Spring Boot (src/main/resources/static) it calls the same origin.
+         If you open it any other way, it falls back to http://localhost:8080/api. */
+      const API = (location.protocol.startsWith('http') && location.port === '8080')
+        ? '/api'
+        : 'http://localhost:8080/api';
+    
+      const state = { trees: [], volunteers: [], checkins: [], loaded: false };
+      const $ = (id) => document.getElementById(id);
+    
+      /* ---------- Helpers ---------- */
+      const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+      const cap = (s) => s ? s.charAt(0) + s.slice(1).toLowerCase() : '';
+      const num = (v) => (v === '' || v == null) ? null : Number(v);
+      const todayISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+    
+      function fmtDate(v) {
+        if (!v) return '<span class="muted">n/a</span>';
+        if (Array.isArray(v)) v = `${v[0]}-${String(v[1]).padStart(2, '0')}-${String(v[2]).padStart(2, '0')}`;
+        const d = new Date(String(v).slice(0, 10) + 'T00:00:00');
+        if (isNaN(d)) return esc(v);
+        return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+      }
+      const badge = (s) => s ? `<span class="badge ${esc(s)}">${esc(cap(s))}</span>` : '<span class="muted">n/a</span>';
+    
+      /* ---------- Toasts ---------- */
+      function toast(type, title, msg) {
+        const el = document.createElement('div');
+        el.className = `toast ${type}`;
+        el.setAttribute('role', type === 'error' ? 'alert' : 'status');
+        el.innerHTML = `<div class="t-body"><div class="t-title">${esc(title)}</div>${msg ? `<div class="t-msg">${esc(msg)}</div>` : ''}</div><button type="button" aria-label="Dismiss">&times;</button>`;
+        const close = () => el.remove();
+        el.querySelector('button').addEventListener('click', close);
+        $('toasts').appendChild(el);
+        setTimeout(close, type === 'error' ? 9000 : 4500);
+      }
+    
+      /* ---------- API ---------- */
+      async function api(path, options = {}) {
+        let res;
+        try {
+          res = await fetch(API + path, {
+            headers: { 'Accept': 'application/json', ...(options.body ? { 'Content-Type': 'application/json' } : {}) },
+            ...options
+          });
+        } catch (e) {
+          const err = new Error(`Could not reach the server at ${API}. Check that the backend is running and that CORS allows this page.`);
+          err.network = true;
+          throw err;
+        }
+        const text = await res.text();
+        let data = null;
+        if (text) { try { data = JSON.parse(text); } catch { data = text; } }
+        if (!res.ok) {
+          let msg = '';
+          if (data && typeof data === 'object') {
+            msg = data.message || data.error || data.detail || '';
+            if (Array.isArray(data.errors)) msg = data.errors.map((x) => x.defaultMessage || x.message || x).join('; ') || msg;
+          } else if (typeof data === 'string') msg = data.slice(0, 200);
+          const err = new Error(msg || `${res.status} ${res.statusText || 'Request failed'}`);
+          err.status = res.status;
+          throw err;
+        }
+        return data;
+      }
+    
+      function setConn(ok) {
+        const c = $('conn');
+        c.className = 'conn ' + (ok ? 'online' : 'offline');
+        $('connText').textContent = ok ? 'API online' : 'API unreachable';
+      }
+    
+      async function loadAll(silent = false) {
+        const icon = $('refreshIcon');
+        icon.classList.add('spin');
+        if (!state.loaded) renderSkeletons();
+        const [t, v, c] = await Promise.allSettled([api('/trees'), api('/volunteers'), api('/checkins')]);
+        icon.classList.remove('spin');
+    
+        if (t.status === 'fulfilled') state.trees = Array.isArray(t.value) ? t.value : [];
+        if (v.status === 'fulfilled') state.volunteers = Array.isArray(v.value) ? v.value : [];
+        if (c.status === 'fulfilled') state.checkins = Array.isArray(c.value) ? c.value : [];
+    
+        const failed = [['trees', t], ['volunteers', v], ['check-ins', c]].filter(([, r]) => r.status === 'rejected');
+        setConn(failed.length < 3);
+        if (failed.length && !silent) {
+          const first = failed[0][1].reason;
+          toast('error', `Could not load ${failed.map(([n]) => n).join(', ')}`, first.message);
+        }
+        state.loaded = true;
+        $('stamp').textContent = 'Last synced ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        renderAll();
+      }
+    
+      /* ---------- Derived data ---------- */
+      const volName = (o) => o?.volunteer?.name || '';
+      function treeCountFor(id) { return state.trees.filter((t) => t.volunteer?.id === id).length; }
+      function checkinCountFor(id) { return state.checkins.filter((c) => c.volunteer?.id === id).length; }
+    
+      /* ---------- Rendering ---------- */
+      function renderAll() {
+        renderKpis();
+        renderTrees();
+        renderCheckins();
+        renderVolunteers();
+        renderSelects();
+        $('cnt-trees').textContent = state.trees.length;
+        $('cnt-checkins').textContent = state.checkins.length;
+        $('cnt-volunteers').textContent = state.volunteers.length;
+      }
+    
+      function renderKpis() {
+        const total = state.trees.length;
+        const count = (s) => state.trees.filter((t) => t.status === s).length;
+        const alive = count('ALIVE'), crit = count('CRITICAL'), dead = count('DEAD');
+        const rate = total ? Math.round((alive / total) * 1000) / 10 : 0;
+    
+        const activeIds = new Set();
+        state.trees.forEach((t) => t.volunteer?.id != null && activeIds.add(t.volunteer.id));
+        state.checkins.forEach((c) => c.volunteer?.id != null && activeIds.add(c.volunteer.id));
+    
+        $('kpiTotal').textContent = total.toLocaleString();
+        $('kpiAlive').textContent = alive.toLocaleString();
+        $('kpiAliveNote').textContent = crit ? `${crit} more in critical condition` : 'Healthy and growing';
+        $('kpiRate').textContent = Number.isInteger(rate) ? rate : rate.toFixed(1);
+        $('kpiMeter').style.width = rate + '%';
+        $('kpiVol').textContent = activeIds.size.toLocaleString();
+        $('kpiVolNote').textContent = `of ${state.volunteers.length} registered`;
+    
+        const pct = (n) => total ? (n / total * 100) : 0;
+        $('hbAlive').style.width = pct(alive) + '%';
+        $('hbCrit').style.width = pct(crit) + '%';
+        $('hbDead').style.width = pct(dead) + '%';
+        $('lgAlive').textContent = alive;
+        $('lgCrit').textContent = crit;
+        $('lgDead').textContent = dead;
+        $('healthNote').textContent = total ? `${total} tree${total === 1 ? '' : 's'} monitored` : 'No trees registered';
+      }
+    
+      function emptyRow(cols, title, msg) {
+        return `<tr><td colspan="${cols}"><div class="empty"><strong>${esc(title)}</strong>${esc(msg)}</div></td></tr>`;
+      }
+    
+      function renderSkeletons() {
+        const row = (n) => `<tr class="skeleton">${'<td><span></span></td>'.repeat(n)}</tr>`;
+        $('treesBody').innerHTML = row(7).repeat(4);
+        $('checkinsBody').innerHTML = row(5).repeat(4);
+        $('volBody').innerHTML = row(6).repeat(4);
+      }
+    
+      function renderTrees() {
+        const q = $('treeSearch').value.trim().toLowerCase();
+        const f = $('treeFilter').value;
+        const list = state.trees
+          .filter((t) => (!f || t.status === f) && (!q || `${t.species} ${t.location} ${volName(t)}`.toLowerCase().includes(q)))
+          .sort((a, b) => b.id - a.id);
+        $('treesMeta').textContent = `Showing ${list.length} of ${state.trees.length}`;
+    
+        if (!state.trees.length) { $('treesBody').innerHTML = emptyRow(7, 'No trees yet', 'Use the form to register your first tree.'); return; }
+        if (!list.length) { $('treesBody').innerHTML = emptyRow(7, 'No matches', 'Try a different search or status filter.'); return; }
+    
+        $('treesBody').innerHTML = list.map((t) => `
+          <tr>
+            <td class="id">#${esc(t.id)}</td>
+            <td class="strong">${esc(t.species)}</td>
+            <td>${esc(t.location)}</td>
+            <td>${fmtDate(t.datePlanted)}</td>
+            <td>${badge(t.status)}</td>
+            <td>${t.volunteer?.name ? esc(t.volunteer.name) : '<span class="muted">Unassigned</span>'}</td>
+            <td>${t.status === 'DEAD' ? '' : `<button class="btn ghost small" type="button" data-checkin="${esc(t.id)}">Check in</button>`}</td>
+          </tr>`).join('');
+      }
+    
+      function renderCheckins() {
+        const q = $('ciSearch').value.trim().toLowerCase();
+        const f = $('ciFilter').value;
+        const list = state.checkins
+          .filter((c) => (!f || c.statusRecorded === f) && (!q || `${c.tree?.species} ${volName(c)}`.toLowerCase().includes(q)))
+          .sort((a, b) => String(b.checkInDate).localeCompare(String(a.checkInDate)) || b.id - a.id);
+        $('checkinsMeta').textContent = `Showing ${list.length} of ${state.checkins.length}`;
+    
+        if (!state.checkins.length) { $('checkinsBody').innerHTML = emptyRow(5, 'No check-ins yet', 'Record a check-in to start the health history.'); return; }
+        if (!list.length) { $('checkinsBody').innerHTML = emptyRow(5, 'No matches', 'Try a different search or status filter.'); return; }
+    
+        $('checkinsBody').innerHTML = list.map((c) => `
+          <tr>
+            <td class="id">#${esc(c.id)}</td>
+            <td class="strong">${esc(c.tree?.species || 'Unknown')} <span class="muted">(ID ${esc(c.tree?.id ?? '?')})</span></td>
+            <td>${c.volunteer?.name ? esc(c.volunteer.name) : '<span class="muted">Not recorded</span>'}</td>
+            <td>${fmtDate(c.checkInDate)}</td>
+            <td>${badge(c.statusRecorded)}</td>
+          </tr>`).join('');
+      }
+    
+      function renderVolunteers() {
+        const q = $('volSearch').value.trim().toLowerCase();
+        const list = state.volunteers
+          .filter((v) => !q || `${v.name} ${v.email} ${v.phone}`.toLowerCase().includes(q))
+          .sort((a, b) => b.id - a.id);
+        $('volMeta').textContent = `Showing ${list.length} of ${state.volunteers.length}`;
+    
+        if (!state.volunteers.length) { $('volBody').innerHTML = emptyRow(6, 'No volunteers yet', 'Add a volunteer so trees and check-ins can be assigned.'); return; }
+        if (!list.length) { $('volBody').innerHTML = emptyRow(6, 'No matches', 'Try a different search.'); return; }
+    
+        $('volBody').innerHTML = list.map((v) => `
+          <tr>
+            <td class="id">#${esc(v.id)}</td>
+            <td class="strong">${esc(v.name)}</td>
+            <td>${esc(v.email)}</td>
+            <td>${esc(v.phone)}</td>
+            <td class="num">${treeCountFor(v.id)}</td>
+            <td class="num">${checkinCountFor(v.id)}</td>
+          </tr>`).join('');
+      }
+    
+      function renderSelects() {
+        // Volunteers (keep current selection where possible)
+        const volOpts = (placeholder) => `<option value="">${placeholder}</option>` +
+          [...state.volunteers].sort((a, b) => a.name.localeCompare(b.name))
+            .map((v) => `<option value="${esc(v.id)}">${esc(v.name)}</option>`).join('');
+        for (const [id, ph] of [['tVolunteer', 'No volunteer assigned'], ['cVolunteer', 'No volunteer']]) {
+          const el = $(id), prev = el.value;
+          el.innerHTML = volOpts(ph);
+          if ([...el.options].some((o) => o.value === prev)) el.value = prev;
+        }
+    
+        // Monitored trees (alive or critical)
+        const el = $('cTree'), prev = el.value;
+        const monitored = state.trees.filter((t) => t.status !== 'DEAD').sort((a, b) => b.id - a.id);
+        el.innerHTML = '<option value="">Select a tree</option>' + monitored.map((t) =>
+          `<option value="${esc(t.id)}">${esc(t.species)} at ${esc(t.location)} (ID ${esc(t.id)}, ${esc(cap(t.status))})</option>`).join('');
+        if ([...el.options].some((o) => o.value === prev)) el.value = prev;
+        $('cTreeHint').textContent = monitored.length
+          ? 'Only trees that are alive or critical can be checked in.'
+          : 'No trees to check in. Register a tree first.';
+      }
+    
+      /* ---------- Navigation ---------- */
+      function showView(name, push = true) {
+        if (!['trees', 'checkins', 'volunteers'].includes(name)) name = 'trees';
+        document.querySelectorAll('.view').forEach((v) => { v.hidden = v.id !== 'view-' + name; });
+        document.querySelectorAll('.tab').forEach((t) => t.setAttribute('aria-selected', String(t.dataset.view === name)));
+        if (push && location.hash !== '#' + name) history.replaceState(null, '', '#' + name);
+      }
+    
+      document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => showView(t.dataset.view)));
+      document.querySelector('.tabs').addEventListener('keydown', (e) => {
+        if (!['ArrowLeft', 'ArrowRight'].includes(e.key)) return;
+        const tabs = [...document.querySelectorAll('.tab')];
+        const i = tabs.findIndex((t) => t.getAttribute('aria-selected') === 'true');
+        const next = tabs[(i + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length];
+        next.focus(); showView(next.dataset.view);
+      });
+      window.addEventListener('hashchange', () => showView(location.hash.slice(1), false));
+    
+      /* ---------- Filters ---------- */
+      ['treeSearch', 'treeFilter'].forEach((id) => $(id).addEventListener('input', renderTrees));
+      ['ciSearch', 'ciFilter'].forEach((id) => $(id).addEventListener('input', renderCheckins));
+      $('volSearch').addEventListener('input', renderVolunteers);
+    
+      $('refreshBtn').addEventListener('click', async () => { await loadAll(); if (state.loaded) toast('success', 'Data refreshed'); });
+    
+      // "Check in" shortcut on a tree row
+      $('treesBody').addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-checkin]');
+        if (!btn) return;
+        const tree = state.trees.find((t) => String(t.id) === btn.dataset.checkin);
+        showView('checkins');
+        $('cTree').value = btn.dataset.checkin;
+        if (tree?.status) $('cStatus').value = tree.status;
+        if (tree?.volunteer?.id != null) $('cVolunteer').value = String(tree.volunteer.id);
+        $('cTree').focus();
+      });
+    
+      // Pre-fill volunteer / status when a tree is chosen for a check-in
+      $('cTree').addEventListener('change', () => {
+        const tree = state.trees.find((t) => String(t.id) === $('cTree').value);
+        if (!tree) return;
+        if (tree.volunteer?.id != null && !$('cVolunteer').value) $('cVolunteer').value = String(tree.volunteer.id);
+        if (tree.status) $('cStatus').value = tree.status;
+      });
+    
+      /* ---------- Forms ---------- */
+      async function submitForm(form, path, buildPayload, successTitle, after) {
+        const btn = form.querySelector('button[type="submit"]');
+        const label = btn.textContent;
+        const payload = buildPayload(form);
+        if (payload === null) return;
+        btn.disabled = true; btn.textContent = 'Saving...';
+        try {
+          await api(path, { method: 'POST', body: JSON.stringify(payload) });
+          toast('success', successTitle);
+          form.reset();
+          after && after();
+          await loadAll(true);
+        } catch (err) {
+          toast('error', err.network ? 'Server unreachable' : 'Request failed', err.message);
+          if (err.network) setConn(false);
+        } finally {
+          btn.disabled = false; btn.textContent = label;
+        }
+      }
+    
+      function need(cond, msg, field) {
+        if (cond) return true;
+        toast('warn', 'Check the form', msg);
+        field && field.focus();
+        return false;
+      }
+    
+      $('treeForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        submitForm(e.target, '/trees', (f) => {
+          const species = f.species.value.trim(), location_ = f.location.value.trim(), date = f.datePlanted.value;
+          if (!need(species, 'Enter the tree species.', f.species)) return null;
+          if (!need(location_, 'Enter where the tree is planted.', f.location)) return null;
+          if (!need(date, 'Choose the planting date.', f.datePlanted)) return null;
+          if (!need(date <= todayISO(), 'The planting date cannot be in the future.', f.datePlanted)) return null;
+          return { species, location: location_, datePlanted: date, status: f.status.value, volunteerId: num(f.volunteerId.value), plantationDriveId: num(f.plantationDriveId.value) };
+        }, 'Tree registered', () => { $('tDate').value = todayISO(); });
+      });
+    
+      $('checkinForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        submitForm(e.target, '/checkins', (f) => {
+          if (!need(f.treeId.value, 'Select the tree you are checking in.', f.treeId)) return null;
+          return { treeId: num(f.treeId.value), volunteerId: num(f.volunteerId.value), status: f.status.value };
+        }, 'Check-in recorded');
+      });
+    
+      $('volForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        submitForm(e.target, '/volunteers', (f) => {
+          const name = f.name.value.trim(), email = f.email.value.trim(), phone = f.phone.value.trim();
+          if (!need(name, 'Enter the volunteer\'s name.', f.name)) return null;
+          if (!need(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email), 'Enter a valid email address.', f.email)) return null;
+          if (!need(phone.replace(/\D/g, '').length >= 7, 'Enter a valid phone number.', f.phone)) return null;
+          return { name, email, phone };
+        }, 'Volunteer added');
+      });
+    
+      /* ---------- Init ---------- */
+      $('apiLabel').textContent = API.startsWith('/') ? location.origin + API : API;
+      $('tDate').value = todayISO();
+      $('tDate').max = todayISO();
+      showView(location.hash.slice(1), false);
+      loadAll();
+    })();
+</script>
+</body>
+</html></title>
+</head>
+<body>
+
+</body>
+</html>
